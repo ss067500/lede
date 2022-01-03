@@ -181,10 +181,9 @@ platform_do_upgrade() {
 	century,wr142ac-nand |\
 	cilab,meshpoint-one |\
 	hiwifi,c526a |\
-	hiwifi,c526a-128m |\
 	mobipromo,cm520-79f |\
 	qxwlan,e2600ac-c2)
-		nand_do_upgrade "$ARGV"
+		nand_do_upgrade "$1"
 		;;
 	alfa-network,ap120c-ac)
 		part="$(awk -F 'ubi.mtd=' '{printf $2}' /proc/cmdline | sed -e 's/ .*$//')"
@@ -213,12 +212,17 @@ platform_do_upgrade() {
 			asus_nand_upgrade_tar 20951040 "$1"
 		fi
 		;;
+	zte,mf263)
+		PART_NAME=rootfs
+		nand_do_upgrade "$1"
+		;;
 	cellc,rtl30vw)
 		CI_UBIPART="ubifs"
 		askey_do_upgrade "$1"
 		;;
 	compex,wpj419|\
-	p2w,r619ac)
+	p2w,r619ac|\
+	p2w,r619ac-128m)
 		nand_do_upgrade "$1"
 		;;
 	linksys,ea6350v3 |\
@@ -232,13 +236,13 @@ platform_do_upgrade() {
 	openmesh,a42 |\
 	openmesh,a62)
 		PART_NAME="inactive"
-		platform_do_upgrade_openmesh "$ARGV"
+		platform_do_upgrade_openmesh "$1"
 		;;
 	zyxel,nbg6617)
 		zyxel_do_upgrade "$1"
 		;;
 	*)
-		default_do_upgrade "$ARGV"
+		default_do_upgrade "$1"
 		;;
 	esac
 }
