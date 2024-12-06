@@ -21,7 +21,7 @@ Kernel/Patch:=$(Kernel/Patch/Default)
 ifneq (,$(findstring .xz,$(LINUX_SOURCE)))
   LINUX_CAT:=xzcat
 else
-  LINUX_CAT:=gzip -dc
+  LINUX_CAT:=$(STAGING_DIR_HOST)/bin/libdeflate-gzip -dc
 endif
 
 ifeq ($(strip $(CONFIG_EXTERNAL_KERNEL_TREE)),"")
@@ -75,6 +75,7 @@ endif
 	rm -f $(LINUX_DIR)/.config.prev
 	mv $(LINUX_DIR)/.config $(LINUX_DIR)/.config.old
 	$(call Kernel/SetInitramfs/PreConfigure)
+	echo "# CONFIG_INITRAMFS_PRESERVE_MTIME is not set" >> $(LINUX_DIR)/.config
   ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS_SEPARATE),y)
 	echo 'CONFIG_INITRAMFS_ROOT_UID=$(shell id -u)' >> $(LINUX_DIR)/.config
 	echo 'CONFIG_INITRAMFS_ROOT_GID=$(shell id -g)' >> $(LINUX_DIR)/.config
@@ -99,6 +100,7 @@ define Kernel/SetNoInitramfs
 	grep -v INITRAMFS $(LINUX_DIR)/.config.old > $(LINUX_DIR)/.config.set
 	echo 'CONFIG_INITRAMFS_SOURCE=""' >> $(LINUX_DIR)/.config.set
 	echo '# CONFIG_INITRAMFS_FORCE is not set' >> $(LINUX_DIR)/.config.set
+	echo "# CONFIG_INITRAMFS_PRESERVE_MTIME is not set" >> $(LINUX_DIR)/.config.set
 endef
 
 define Kernel/Configure/Default
@@ -180,10 +182,10 @@ endif
 	$(if $(SOURCE_DATE_EPOCH),touch -hcd "@$(SOURCE_DATE_EPOCH)" $(KERNEL_BUILD_DIR)/initrd.cpio)
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_BZIP2),bzip2 -9 -c < $(KERNEL_BUILD_DIR)/initrd.cpio > $(KERNEL_BUILD_DIR)/initrd.cpio.bzip2)
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_GZIP),gzip -n -f -S .gzip -9n $(KERNEL_BUILD_DIR)/initrd.cpio)
+	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_LZ4),$(STAGING_DIR_HOST)/bin/lz4c -l -c1 -fz --favor-decSpeed $(KERNEL_BUILD_DIR)/initrd.cpio)
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_LZMA),$(STAGING_DIR_HOST)/bin/lzma e -lc1 -lp2 -pb2 $(KERNEL_BUILD_DIR)/initrd.cpio $(KERNEL_BUILD_DIR)/initrd.cpio.lzma)
-# ?	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_LZO),)
+	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_LZO),$(STAGING_DIR_HOST)/bin/lzop -9 -f $(KERNEL_BUILD_DIR)/initrd.cpio)
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_XZ),$(STAGING_DIR_HOST)/bin/xz -T$(if $(filter 1,$(NPROC)),2,0) -9 -fz --check=crc32 $(KERNEL_BUILD_DIR)/initrd.cpio)
-# ?	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_LZ4),)
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_ZSTD),$(STAGING_DIR_HOST)/bin/zstd -T0 -f -o $(KERNEL_BUILD_DIR)/initrd.cpio.zstd $(KERNEL_BUILD_DIR)/initrd.cpio)
 endif
 	+$(KERNEL_MAKE) $(KERNEL_MAKEOPTS_IMAGE) $(if $(KERNELNAME),$(KERNELNAME),all) modules

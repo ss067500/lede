@@ -11,14 +11,12 @@ PKG_NAME:=rtw88-usb
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2021-07-06
-PKG_SOURCE_URL:=https://github.com/ulli-kroll/rtw88-usb.git
-PKG_SOURCE_VERSION:=dd05eec8e5ac934b3d8e67e8008228f842b4ce1c
-PKG_MIRROR_HASH:=9932f69573a3469d1eba403c7964a9472530fcfa1c29356babeecdad8d9c6991
+PKG_SOURCE_DATE:=2024-11-01
+PKG_SOURCE_URL:=https://github.com/lwfinger/rtw88.git
+PKG_SOURCE_VERSION:=e9a6539a81a4ac1a539f510ded6a91c42efb7e2e
+PKG_MIRROR_HASH:=a1d667d3bbee5a9ac197a807950cdc0f6a60828898e42ca0cfb402cf6089eb0c
 
 PKG_BUILD_PARALLEL:=1
-PKG_LICENSE:=GPL-2.0
-PKG_LICENSE_FILES:=LICENSE
 
 STAMP_CONFIGURED_DEPENDS := $(STAGING_DIR)/usr/include/mac80211-backport/backport/autoconf.h
 
@@ -28,7 +26,7 @@ include $(INCLUDE_DIR)/package.mk
 define KernelPackage/rtw88-default
   SUBMENU:=Wireless Drivers
   TITLE:=Realtek rtw88 family usb driver
-  DEPENDS:=+kmod-mac80211 +kmod-usb-core \
+  DEPENDS:=@(LINUX_6_1||LINUX_6_6) +kmod-mac80211 \
 	+@DRIVER_11N_SUPPORT +@DRIVER_11AC_SUPPORT
 endef
 
@@ -36,18 +34,33 @@ define KernelPackage/rtw88-usb
   $(KernelPackage/rtw88-default)
   HIDDEN:=1
   FILES:= \
-	$(PKG_BUILD_DIR)/rtw88_usb.ko \
-	$(PKG_BUILD_DIR)/rtw88_core.ko
+	$(PKG_BUILD_DIR)/rtw_core.ko \
+	$(PKG_BUILD_DIR)/rtw_usb.ko
+  DEPENDS+=+kmod-usb-core
 endef
 
 define KernelPackage/rtl8723du
   $(KernelPackage/rtw88-default)
   TITLE:=Realtek RTL8723DU support
-  DEPENDS+=+kmod-rtw88-usb +rtl8723du-firmware
+  DEPENDS+=+kmod-rtw88-usb +rtl8723de-firmware
   FILES:= \
-	$(PKG_BUILD_DIR)/rtw88_8723d.ko \
-	$(PKG_BUILD_DIR)/rtw88_8723du.ko
-  AUTOLOAD:=$(call AutoProbe,rtw88_8723du)
+	$(PKG_BUILD_DIR)/rtw_8723x.ko \
+	$(PKG_BUILD_DIR)/rtw_8723d.ko \
+	$(PKG_BUILD_DIR)/rtw_8723du.ko
+  AUTOLOAD:=$(call AutoProbe,rtw_8723du)
+endef
+
+define KernelPackage/rtl8821au
+  $(KernelPackage/rtw88-default)
+  TITLE:=Realtek RTL8812AU/RTL8821AU support
+  DEPENDS+=+kmod-rtw88-usb +rtl8821au-firmware
+  FILES:= \
+	$(PKG_BUILD_DIR)/rtw_88xxa.ko \
+	$(PKG_BUILD_DIR)/rtw_8812a.ko \
+	$(PKG_BUILD_DIR)/rtw_8821a.ko \
+	$(PKG_BUILD_DIR)/rtw_8812au.ko \
+	$(PKG_BUILD_DIR)/rtw_8821au.ko
+  AUTOLOAD:=$(call AutoProbe,rtw_8812au rtw_8821au)
 endef
 
 define KernelPackage/rtl8821cu
@@ -55,9 +68,9 @@ define KernelPackage/rtl8821cu
   TITLE:=Realtek RTL8821CU support
   DEPENDS+=+kmod-rtw88-usb +rtl8821ce-firmware
   FILES:= \
-	$(PKG_BUILD_DIR)/rtw88_8821c.ko \
-	$(PKG_BUILD_DIR)/rtw88_8821cu.ko
-  AUTOLOAD:=$(call AutoProbe,rtw88_8821cu)
+	$(PKG_BUILD_DIR)/rtw_8821c.ko \
+	$(PKG_BUILD_DIR)/rtw_8821cu.ko
+  AUTOLOAD:=$(call AutoProbe,rtw_8821cu)
 endef
 
 define KernelPackage/rtl8822bu
@@ -65,9 +78,9 @@ define KernelPackage/rtl8822bu
   TITLE:=Realtek RTL8822BU support
   DEPENDS+=+kmod-rtw88-usb +rtl8822be-firmware
   FILES:= \
-	$(PKG_BUILD_DIR)/rtw88_8822b.ko \
-	$(PKG_BUILD_DIR)/rtw88_8822bu.ko
-  AUTOLOAD:=$(call AutoProbe,rtw88_8822bu)
+	$(PKG_BUILD_DIR)/rtw_8822b.ko \
+	$(PKG_BUILD_DIR)/rtw_8822bu.ko
+  AUTOLOAD:=$(call AutoProbe,rtw_8822bu)
 endef
 
 define KernelPackage/rtl8822cu
@@ -75,9 +88,9 @@ define KernelPackage/rtl8822cu
   TITLE:=Realtek RTL8822CU support
   DEPENDS+=+kmod-rtw88-usb +rtl8822ce-firmware
   FILES:= \
-	$(PKG_BUILD_DIR)/rtw88_8822c.ko \
-	$(PKG_BUILD_DIR)/rtw88_8822cu.ko
-  AUTOLOAD:=$(call AutoProbe,rtw88_8822cu)
+	$(PKG_BUILD_DIR)/rtw_8822c.ko \
+	$(PKG_BUILD_DIR)/rtw_8822cu.ko
+  AUTOLOAD:=$(call AutoProbe,rtw_8822cu)
 endef
 
 NOSTDINC_FLAGS := \
@@ -90,43 +103,24 @@ NOSTDINC_FLAGS := \
 	-include backport/autoconf.h \
 	-include backport/backport.h
 
-ifdef CONFIG_PACKAGE_kmod-rtw88-usb
-PKG_MAKE_FLAGS += \
-    CONFIG_RTW88_USB=m \
-    CONFIG_RTW88_CORE=m
-endif
-ifdef CONFIG_PACKAGE_kmod-rtl8723du
-  PKG_MAKE_FLAGS += \
-    CONFIG_RTW88_8723D=m \
-    CONFIG_RTW88_8723DU=m
-endif
-ifdef CONFIG_PACKAGE_kmod-rtl8821cu
-  PKG_MAKE_FLAGS += \
-    CONFIG_RTW88_8821C=m \
-    CONFIG_RTW88_8821CU=m
-endif
-ifdef CONFIG_PACKAGE_kmod-rtl8822bu
-  PKG_MAKE_FLAGS += \
-    CONFIG_RTW88_8822B=m \
-    CONFIG_RTW88_8822BU=m
-endif
-ifdef CONFIG_PACKAGE_kmod-rtl8822cu
-  PKG_MAKE_FLAGS += \
-    CONFIG_RTW88_8822C=m \
-    CONFIG_RTW88_8822CU=m
-endif
+NOSTDINC_FLAGS+=-DBUILD_OPENWRT
 
 define Build/Compile
 	+$(MAKE) $(PKG_JOBS) -C "$(LINUX_DIR)" \
 		$(KERNEL_MAKE_FLAGS) \
-		$(PKG_MAKE_FLAGS) \
 		M="$(PKG_BUILD_DIR)" \
 		NOSTDINC_FLAGS="$(NOSTDINC_FLAGS)" \
 		modules
 endef
 
+define KernelPackage/rtl8821au/install
+	$(INSTALL_DIR) $(1)/lib/firmware/rtw88
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/firmware/rtw8812a_fw.bin $(1)/lib/firmware/rtw88
+endef
+
 $(eval $(call KernelPackage,rtw88-usb))
 $(eval $(call KernelPackage,rtl8723du))
+$(eval $(call KernelPackage,rtl8821au))
 $(eval $(call KernelPackage,rtl8821cu))
 $(eval $(call KernelPackage,rtl8822bu))
 $(eval $(call KernelPackage,rtl8822cu))

@@ -277,7 +277,9 @@ endef
 define Build/initrd_compression
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_BZIP2),.bzip2) \
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_GZIP),.gzip) \
+	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_LZ4),.lz4) \
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_LZMA),.lzma) \
+	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_LZO),.lzo) \
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_XZ),.xz) \
 	$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_ZSTD),.zstd)
 endef
@@ -298,7 +300,7 @@ define Build/fit
 		$(if $(DEVICE_FDT_NUM),-n $(DEVICE_FDT_NUM)) \
 		$(if $(DEVICE_DTS_DELIMITER),-l $(DEVICE_DTS_DELIMITER)) \
 		$(if $(DEVICE_DTS_LOADADDR),-s $(DEVICE_DTS_LOADADDR)) \
-		$(if $(DEVICE_DTS_OVERLAY),$(foreach dtso,$(DEVICE_DTS_OVERLAY), -O $(dtso):$(KERNEL_BUILD_DIR)/image-$(dtso).dtb)) \
+		$(if $(DEVICE_DTS_OVERLAY),$(foreach dtso,$(DEVICE_DTS_OVERLAY), -O $(dtso):$(KERNEL_BUILD_DIR)/image-$(dtso).dtbo)) \
 		-c $(if $(DEVICE_DTS_CONFIG),$(DEVICE_DTS_CONFIG),"config-1") \
 		-A $(LINUX_KARCH) -v $(LINUX_VERSION)
 	PATH=$(LINUX_DIR)/scripts/dtc:$(PATH) mkimage $(if $(findstring external,$(word 3,$(1))),\
@@ -306,9 +308,23 @@ define Build/fit
 	@mv $@.new $@
 endef
 
-define Build/gzip
-	gzip -f -9n -c $@ $(1) > $@.new
+define Build/libdeflate-gzip
+	$(STAGING_DIR_HOST)/bin/libdeflate-gzip -f -12 -c $@ $(1) > $@.new
 	@mv $@.new $@
+endef
+
+define Build/gzip
+	$(STAGING_DIR_HOST)/bin/gzip -f -9n -c $@ $(1) > $@.new
+	@mv $@.new $@
+endef
+
+define Build/gzip-filename
+	@mkdir -p $@.tmp
+	@cp $@ $@.tmp/$(word 1,$(1))
+	$(if $(SOURCE_DATE_EPOCH),touch -hcd "@$(SOURCE_DATE_EPOCH)" $@.tmp/$(word 1,$(1)) $(word 2,$(1)))
+	$(STAGING_DIR_HOST)/bin/gzip -f -9 -N -c $@.tmp/$(word 1,$(1)) $(word 2,$(1)) > $@.new
+	@mv $@.new $@
+	@rm -rf $@.tmp
 endef
 
 define Build/install-dtb
@@ -565,6 +581,7 @@ define Build/tplink-v2-image
 endef
 
 define Build/uImage
+	$(if $(UIMAGE_TIME),SOURCE_DATE_EPOCH="$(UIMAGE_TIME)") \
 	mkimage \
 		-A $(LINUX_KARCH) \
 		-O linux \
